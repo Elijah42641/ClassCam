@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="dashboard.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"></head>
+<body>
+<!--navbar-->
+ <div class="navbar">
+        <div class="navbarBackground"><p></p></div>
+        
+        <p class="navbarHome home">
+            <i class="material-icons home">home</i>
+            Home
+        </p>
+        
+        <p class="navbarDiscover">
+            <i class="material-icons icons">explore</i>
+            Discover
+        </p>
+        
+        <p class="navbarCreate">
+            <i class="material-icons icons">add_circle</i>
+            Create
+        </p>
+        
+        <p class="navbarNotifications">
+            <i class="material-icons icons">notifications</i>
+            Notifications
+        </p>
+        
+        <p class="navbarProfile">
+          <a style="display:contents;color:inherit;text-decoration:none;" href="../profile/profile.html">
+            <i class="material-icons icons">account_circle</i>
+            Profile
+        </p>
+      </a>
+    </div>
+
+    <!--Main content-->
+    <!--stat cards-->
+<div class="stats-dashboard-container">
+  <div class="stats-dashboard">
+    <h2 class="dashboard-header">Here's what's happening with your account today</h2>
+    <div class="stats-grid">
+      <!-- Upcoming Meetings -->
+      <div class="stat-tile">
+        <div class="stat-icon-box" style="background: rgba(255, 255, 255, 0.1);">📅</div>
+        <div class="stat-text-box">
+          <div class="stat-label">Upcoming Meetings</div>
+          <div class="stat-number upcomingMeetingsStat"></div>
+        </div>
+      </div>
+
+      <!-- Attended Meetings -->
+      <div class="stat-tile">
+        <div class="stat-icon-box" style="background: rgba(255, 255, 255, 0.1);">✅</div>
+        <div class="stat-text-box">
+          <div class="stat-label">Attended Meetings</div>
+          <div class="stat-number attendedMeetingsStat"></div>
+        </div>
+      </div>
+
+      <!-- Active Subscriptions -->
+      <div class="stat-tile">
+        <div class="stat-icon-box" style="background: rgba(255, 255, 255, 0.1);">🔔</div>
+        <div class="stat-text-box">
+          <div class="stat-label">Active Subscriptions</div>
+          <div class="stat-number activeSubscriptionsStat"></div>
+        </div>
+      </div>
+
+      <!-- Meetings Created -->
+      <div class="stat-tile">
+        <div class="stat-icon-box" style="background: rgba(255, 255, 255, 0.1);">🛠️</div>
+        <div class="stat-text-box">
+          <div class="stat-label">Meetings Created</div>
+          <div class="stat-number meetingsCreatedStat"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!--Quick actions: browse meetings, manage subscriptions-->
+<div class="quick-actions-wrapper">
+  <div class="quick-actions-section">
+    <h3 class="actions-title">Quick Actions</h3>
+    <div class="actions-grid">
+      <button onclick='window.location.href="../browse-meetings/browsemeetings.html"' class="action-btn">
+        <span class="action-icon">📅</span>
+        <span class="action-text">Browse Meetings</span>
+      </button>
+      <button onclick="window.location.href='../profile/profile.html#manageSubs'" class="action-btn">
+        <span class="action-icon">💳</span>
+        <span class="action-text">Manage Subscriptions</span>
+      </button>
+      <button class="action-btn">
+        <span class="action-icon">➕</span>
+        <span class="action-text">New Meeting</span>
+      </button>
+      <button class="action-btn">
+        <span class="action-icon">❓</span>
+        <span class="action-text">Help</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="meetings-container">
+  <!-- Upcoming Meetings Section -->
+  <div class="upcoming-section">
+    <h4 class="section-title">Upcoming Meetings</h4>
+    <div class="meetings-list">
+      <div class="meeting-item">
+        <div class="meeting-time">10:00 AM</div>
+        <div class="meeting-details">
+          <div class="meeting-title">Team Standup</div>
+          <div class="meeting-category work-category">Work</div>
+        </div>
+      </div>
+      <div class="meeting-item">
+        <div class="meeting-time">2:30 PM</div>
+        <div class="meeting-details">
+          <div class="meeting-title">Client Review</div>
+          <div class="meeting-category business-category">Business</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Categories Section -->
+  <div class="categories-section">
+    <h4 class="section-title">View Categories</h4>
+    <div class="categories-grid">
+      <button class="category-btn work-category">
+        <span class="category-icon">💼</span>
+        <span class="category-text">Work</span>
+      </button>
+      <button class="category-btn personal-category">
+        <span class="category-icon">🏠</span>
+        <span class="category-text">Personal</span>
+      </button>
+      <button class="category-btn business-category">
+        <span class="category-icon">📈</span>
+        <span class="category-text">Business</span>
+      </button>
+      <button class="category-btn social-category">
+        <span class="category-icon">👥</span>
+        <span class="category-text">Social</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="backgroundLines line1"><p></p></div>
+<script src="dashboard.js"></script>
+<script src="dashboardserver.js"></script>
+</body>
+</html>
