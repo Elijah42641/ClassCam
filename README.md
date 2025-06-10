@@ -1,5 +1,4 @@
-current goal: add cookies when user signs in <br>
-<br>
+
 little roadmap: <br>
 .design dashboard <br>
 .have navbar with navigation <br>
