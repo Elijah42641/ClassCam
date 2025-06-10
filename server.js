@@ -1,12 +1,17 @@
 //////////Basic stuff (keep unchanged)//////////
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
 import { Pool } from 'pg';
 import bcryptjs from 'bcryptjs';
 import session from "express-session";
 import FileStore from "session-file-store";
 import cookieParser from "cookie-parser";
+
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -29,12 +34,6 @@ app.use(
   })
 );
 
-app.use(cors({
-origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
-  credentials: true, 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-}));
-
 app.use(express.json());
 
 app.listen(3000, () => {
@@ -45,6 +44,8 @@ app.use((req, res, next) => {
   console.log('Session:', req.session);
   next();
 });
+
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 const pool = new Pool({
   user: 'postgres',
@@ -158,15 +159,6 @@ app.post('/api/signin', async (req, res) => {
    
     req.session.user = { username:username};
 
-res.cookie('usersignin', 'testvalue', {
-  httpOnly: true,
-  secure: false, // must be false for local HTTP
-  sameSite: 'lax', // lax is okay if frontend and backend are same-origin or localhost
-  maxAge: 1000 * 60 * 60 * 24,
-});
-
-
-
  req.session.save(err => {
   if (err) {
     console.error('Session save error:', err);
@@ -192,52 +184,23 @@ res.cookie('usersignin', 'testvalue', {
   }
 });
 
-app.post('/api/happeningwithaccount', async (req, res) => {
+app.post('/api/usersignedin', async(req, res) => {
   try {
-        if (!req.session?.user?.username) {
+   if (!req.session.user || req.session.user===undefined) {
+    return res.status(401).json({
+      message:'user unauthorized'
+    }
+    );
+   }
+   console.log(req.session.user);
+  }
+
+  catch(err) {
+    if (err===401) {
       return res.status(401).json({
-        success: false,
-        message: 'must be signed in to use feature'
+        message:'user unauthorized'
       });
     }
-
-    const username = req.session.user.username; 
-
-    const upcoming_meetings = await pool.query(
-      'SELECT upcoming_meetings FROM otheraccountdata WHERE username = $1',
-      [username]
-    );
-
-      const attended_meetings = await pool.query(
-      'SELECT attended_meetings FROM otheraccountdata WHERE username = $1',
-      [username]
-    );
-
-      const active_subscriptions = await pool.query(
-      'SELECT active_subscriptions FROM otheraccountdata WHERE username = $1',
-      [username]
-    );
-
-      const meetings_created = await pool.query(
-      'SELECT meetings_created FROM otheraccountdata WHERE username = $1',
-      [username]
-    );
-
-
-  res.json({
-  upcoming_meetings: upcoming_meetings.rows[0]?.upcoming_meetings || 0,
-  attended_meetings: attended_meetings.rows[0]?.attended_meetings || 0,
-  active_subscriptions: active_subscriptions.rows[0]?.active_subscriptions || 0,
-  meetings_created: meetings_created.rows[0]?.meetings_created || 0,
-  username: req.session.user.username
-});
-
-  } catch (err) {
-    console.error(err.stack);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    console.error(err) 
   }
-});
-
+})

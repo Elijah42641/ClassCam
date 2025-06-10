@@ -58,7 +58,7 @@ try {
 }, {
   withCredentials: true 
 });
-
+window.location.href="../dashboard/dashboard.html";
 }
 
   catch(err) {

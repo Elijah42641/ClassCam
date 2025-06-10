@@ -28,7 +28,7 @@ async function callTheSignInApi() {
   );
 
     // Redirect on success
-    
+    window.location.href="../dashboard/dashboard.html";
   } catch (error) {
     // Handle all error cases
     const errorElement = document.querySelector(".invalidUsername");
@@ -55,3 +55,4 @@ document.querySelector(".getstarted").addEventListener("click", (e) => {
 window.onload=()=>{
   console.log(navigator.cookieEnabled);
 }
+
