@@ -5,6 +5,11 @@ const signUpButton = document.getElementsByClassName("getstarted")[0];
 const invalidUsername = document.getElementsByClassName("invalidUsername")[0];
 const invalidEmail = document.getElementsByClassName("invalidEmail")[0];
 const invalidPassword = document.getElementsByClassName("invalidPassword")[0];
+const username = usernameBox.value;
+const password=passwordBox.value;
+const email=emailBox.value;
+
+axios.defaults.withCredentials = true;
 
 const profanityList = [
   "ass","asshole","bastard","bitch","bloody","bollocks","brothel",
@@ -43,6 +48,37 @@ function isValidEmail() {
   }
   return isValid;
 }
+
+async function checkCredsThenCreateAcc(username, email, password) {
+try {
+  const response = await axios.post('http://localhost:3000/api/createaccount', {
+  username,
+  email,
+  password
+}, {
+  withCredentials: true 
+});
+
+}
+
+  catch(err) {
+    if(err.response.data?.code===1002) {
+      invalidUsername.textContent="An account with this username already exists";
+    }
+
+    else if(err.response.data?.code===1001) {
+      invalidEmail.textContent="Email is being used for another account";
+    }
+    
+    else if(err.response.data?.code===23505) {
+      invalidUsername.textContent="Please try again: race error encountered ";
+      checkCredsThenCreateAcc(username, email, password);
+    }
+
+    console.error(err);
+  }
+};
+
 function checkAllValidations() {
   invalidUsername.textContent = "";
   invalidEmail.textContent = "";
@@ -59,7 +95,7 @@ function checkAllValidations() {
   } else if (username.length < 3) {
     usernameTooShort();
     isUsernameValid = false;
-  } else {
+  } else if (username.length<=22 && username.length>=3) {
     for (const profanity of profanityList) {
       if (username.toLowerCase().includes(profanity)) {
         usernameContainsProfanity();
@@ -69,13 +105,13 @@ function checkAllValidations() {
     }
   }
 
+
   isEmailValid = isValidEmail();
   isPasswordValid = goodPassCheck();
 
   return isUsernameValid && isEmailValid && isPasswordValid;
 }
 
-const backendUrl = "http://localhost:3000";
 
 signUpButton.addEventListener("click", async function (e) {
   e.preventDefault();
@@ -89,59 +125,5 @@ signUpButton.addEventListener("click", async function (e) {
   const username = usernameBox.value.trim();
   const email = emailBox.value.trim();
   const password = passwordBox.value.trim();
-
-  try {
-    console.log('Checking credentials for:', username, email);
-    const checkRes = await fetch(
-      `${backendUrl}/api/checkcredentials?username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}`
-    );
-    if (!checkRes.ok) {
-      throw new Error(`Check credentials failed with status ${checkRes.status}`);
-    }
-
-    const checkData = await checkRes.json();
-    console.log('Check credentials response:', checkData);
-
-    if (checkData.isUsernameInUse) {
-      invalidUsername.textContent = "This username is already taken.";
-      return;
-    }
-
-    if (checkData.isEmailInUse) {
-      invalidEmail.textContent = "An account with this email already exists.";
-      return;
-    }
-
-    // Create account
-    console.log('Creating account...');
-    const createRes = await fetch(`${backendUrl}/api/createaccount`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, email, password }),
-    });
-
-    if (!createRes.ok) {
-      throw new Error(`Create account failed with status ${createRes.status}`);
-    }
-
-    const createData = await createRes.json();
-    console.log('Create account response:', createData);
-
- if (createData.created) {
-  // Set cookie to remember username for 7 days
-  document.cookie = `username=${encodeURIComponent(username)}; path=/; max-age=604800`; // 7 days
-
-  alert("Account created successfully!");
-  usernameBox.value = "";
-  passwordBox.value = "";
-  emailBox.value = "";
-  window.location.href = "../dashboard/dashboard.html";
-}
-
-  } catch (err) {
-    console.error("Error:", err);
-    alert("Something went wrong while creating your account.");
-  }
+  checkCredsThenCreateAcc(username,email,password);
 });

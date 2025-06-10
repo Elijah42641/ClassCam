@@ -1,217 +1,243 @@
+//////////Basic stuff (keep unchanged)//////////
+import 'dotenv/config';
 import express from 'express';
-import pkg from 'pg';
 import cors from 'cors';
-import bcrypt from 'bcryptjs';
-import cookie from 'cookie'; // ⬅️ Correct location for import
-import dotenv from 'dotenv';
-dotenv.config();
-const password = process.env.PASSWORD;
-
-process.on('unhandledRejection', (err) => {
-  console.error('🔥 Unhandled Rejection:', err);
-});
-process.on('uncaughtException', (err) => {
-  console.error('💥 Uncaught Exception:', err);
-});
+import { Pool } from 'pg';
+import bcryptjs from 'bcryptjs';
+import session from "express-session";
+import FileStore from "session-file-store";
+import cookieParser from "cookie-parser";
 
 const app = express();
-const port = 3000;
-const { Pool } = pkg;
 
-// Middleware to log requests for debugging
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  next();
-});
+const FileStoreSession = FileStore(session);
+app.use(cookieParser());
 
-const allowedOrigins = ['http://localhost:5500', 'http://127.0.0.1:5500'];
+app.use(
+  session({
+    name: "usersignin",
+    secret: process.env.SESSIONSECRET || 'fallback-secret',
+    resave: false,
+    saveUninitialized: false,
+    store: new FileStoreSession({ path: "./sessions" }),
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+      httpOnly: true,
+      secure: false, 
+      sameSite: 'lax',
+    }
+  })
+);
 
 app.use(cors({
-  origin: function(origin, callback){
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  }
+origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
+  credentials: true, 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
 }));
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
+});
+
+app.use((req, res, next) => {
+  console.log('Session:', req.session);
+  next();
+});
 
 const pool = new Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'postgres',
-  password: process.env.PASSWORD,  
+  password: process.env.PASSWORD,
   port: 5432,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
-// CHECK CREDENTIALS
-app.get('/api/checkcredentials', async (req, res) => {
-  const { username, email } = req.query;
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-  if (!username || !email) {
-    return res.status(400).json({ error: 'Username and email are required' });
-  }
-
-  try {
-    const usernameCheck = await pool.query(
-      'SELECT 1 FROM accountData WHERE username = $1 LIMIT 1',
-      [username]
-    );
-    const isUsernameInUse = usernameCheck.rowCount > 0;
-
-    const emailCheck = await pool.query(
-      'SELECT 1 FROM accountData WHERE email = $1 LIMIT 1',
-      [email]
-    );
-    const isEmailInUse = emailCheck.rowCount > 0;
-
-    return res.json({ isUsernameInUse, isEmailInUse });
-  } catch (err) {
-    console.error('Error during credential check:', err.message);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// CREATE ACCOUNT
+// API endpoint for creating account
 app.post('/api/createaccount', async (req, res) => {
-  const { username, email, password } = req.body;
-
-  if (!username || !email || !password) {
-    return res.status(400).json({ error: 'Username, email, and password are required' });
-  }
-
   try {
-    console.log('Received create account request for:', username, email);
-
-    // Hash the password properly
-    const hashedPassword = await bcrypt.hash(password, 10);
-    console.log('Hashed password:', hashedPassword);
-
-    // Verify the column name matches your database
-    const insertQuery = `
-      INSERT INTO accountData (username, email, password)  // Make sure 'password' matches your column name
-      VALUES ($1, $2, $3)
-      RETURNING username, email
-    `;
+    const { username, email, password } = req.body;
     
-    console.log('Executing query:', insertQuery, 'with params:', [username, email, hashedPassword]);
-    
-    const insertResult = await pool.query(insertQuery, [username, email, hashedPassword]);
-
-    console.log('Inserted user:', insertResult.rows[0]);
-
-    return res.json({ created: true, account: insertResult.rows[0] });
-  } catch (err) {
-    console.error('Error during account creation:', err.message);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
-
-// SIGN IN
-app.post('/api/signin', async (req, res) => {
-  const { email, password } = req.body;
-
-  const errors = {};
-  if (!email) errors.email = 'Email is required';
-  if (!password) errors.password = 'Password is required';
-
-  if (Object.keys(errors).length > 0) {
-    return res.status(400).json({ errors });
-  }
-
-  try {
-    const query = 'SELECT username, password FROM accountData WHERE email = $1';
-    const result = await pool.query(query, [email]);
-
-    if (result.rowCount === 0) {
-      return res.status(401).json({
-        errors: {
-          email: 'Invalid email or password',
-          password: 'Invalid email or password',
-        }
+    // Validate input
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        code: 1000,
+        message: "All fields are required"
       });
     }
 
-    const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-      return res.status(401).json({
-        errors: {
-          email: 'Invalid email or password',
-          password: 'Invalid email or password',
-        }
-      });
-    }
-
-    // Set cookie
-    res.setHeader('Set-Cookie', cookie.serialize('loggedInUser', user.username, {
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60,
-      sameSite: 'strict',
-      path: '/',
-    }));
-
-    return res.json({ signedIn: true, username: user.username });
-  } catch (err) {
-    console.error('Error during sign-in:', err.message);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// USER STATS
-app.get('/api/userstats', async (req, res) => {
-  const { username } = req.query;
-
-  if (!username) {
-    return res.status(400).json({ error: 'Username is required' });
-  }
-
-  try {
-    const upcomingQuery = `
-      SELECT COUNT(*) FROM meetings 
-      WHERE attendee_username = $1 AND date > NOW()
-    `;
-    const attendedQuery = `
-      SELECT COUNT(*) FROM meetings 
-      WHERE attendee_username = $1 AND attended = TRUE
-    `;
-    const subscriptionsQuery = `
-      SELECT COUNT(*) FROM subscriptions 
-      WHERE subscriber_username = $1 AND active = TRUE
-    `;
-    const createdMeetingsQuery = `
-      SELECT COUNT(*) FROM meetings 
-      WHERE creator_username = $1
-    `;
-
-    const [upcoming, attended, subscriptions, created] = await Promise.all([
-      pool.query(upcomingQuery, [username]),
-      pool.query(attendedQuery, [username]),
-      pool.query(subscriptionsQuery, [username]),
-      pool.query(createdMeetingsQuery, [username])
+    const hashedPassword = await bcryptjs.hash(password, 12);
+    
+    // Check username and email in parallel
+    const [usernameUsed, emailUsed] = await Promise.all([
+      pool.query('SELECT username FROM accountcredentials WHERE username = $1', [username]),
+      pool.query('SELECT email FROM accountcredentials WHERE email = $1', [email])
     ]);
 
-    return res.json({
-      upcoming: upcoming.rows[0].count,
-      attended: attended.rows[0].count,
-      subscriptions: subscriptions.rows[0].count,
-      created: created.rows[0].count
+    if (usernameUsed.rows.length > 0) {
+      return res.status(409).json({
+        code: 1002,
+        message: "Username exists"
+      });
+    }
+
+    if (emailUsed.rows.length > 0) {
+      return res.status(409).json({
+        code: 1001,
+        message: "Email exists"
+      });
+    }
+
+    // Create new account
+    await pool.query(
+      'INSERT INTO accountcredentials (username, email, password) VALUES ($1, $2, $3)',
+      [username, email, hashedPassword]
+    );
+
+       await pool.query(
+      'INSERT INTO otheraccountdata (username) VALUES ($1)',
+      [username]
+    );
+
+    req.session.user = { username:username};
+
+    return res.status(200).json({
+      success: true,
+      message: "Account created successfully",
+     username: username
     });
+
   } catch (err) {
-    console.error('Error fetching user stats:', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error('Create account error:', err);
+    return res.status(500).json({
+      code: 1003,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
+
+// Fixed signin endpoint
+app.post('/api/signin', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    // Get user from database
+    const userResult = await pool.query(
+      'SELECT password FROM accountcredentials WHERE username = $1',
+      [username]
+    );
+
+    // Check if user exists
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Compare passwords
+    const storedHash = userResult.rows[0].password;
+    const doesDataMatch = await bcryptjs.compare(password, storedHash);
+    
+    if (!doesDataMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+   
+    req.session.user = { username:username};
+
+res.cookie('usersignin', 'testvalue', {
+  httpOnly: true,
+  secure: false, // must be false for local HTTP
+  sameSite: 'lax', // lax is okay if frontend and backend are same-origin or localhost
+  maxAge: 1000 * 60 * 60 * 24,
+});
+
+
+
+ req.session.save(err => {
+  if (err) {
+    console.error('Session save error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Session save failed'
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: 'Login successful',
+    username: username
+  });
+});
+
+  } catch (err) {
+    console.error('Signin error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+app.post('/api/happeningwithaccount', async (req, res) => {
+  try {
+        if (!req.session?.user?.username) {
+      return res.status(401).json({
+        success: false,
+        message: 'must be signed in to use feature'
+      });
+    }
+
+    const username = req.session.user.username; 
+
+    const upcoming_meetings = await pool.query(
+      'SELECT upcoming_meetings FROM otheraccountdata WHERE username = $1',
+      [username]
+    );
+
+      const attended_meetings = await pool.query(
+      'SELECT attended_meetings FROM otheraccountdata WHERE username = $1',
+      [username]
+    );
+
+      const active_subscriptions = await pool.query(
+      'SELECT active_subscriptions FROM otheraccountdata WHERE username = $1',
+      [username]
+    );
+
+      const meetings_created = await pool.query(
+      'SELECT meetings_created FROM otheraccountdata WHERE username = $1',
+      [username]
+    );
+
+
+  res.json({
+  upcoming_meetings: upcoming_meetings.rows[0]?.upcoming_meetings || 0,
+  attended_meetings: attended_meetings.rows[0]?.attended_meetings || 0,
+  active_subscriptions: active_subscriptions.rows[0]?.active_subscriptions || 0,
+  meetings_created: meetings_created.rows[0]?.meetings_created || 0,
+  username: req.session.user.username
+});
+
+  } catch (err) {
+    console.error(err.stack);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+

@@ -17,16 +17,19 @@
 <p class="invalidUsername"></p>
 <p class="invalidEmail"></p>
 <p class="invalidPassword"></p>
-<input class="username" type="text" placeholder="Username">
-<input class="email" type="text" placeholder="Email">
-<input class="password" type="text" placeholder="Password">
+<form>
+<input class="username" name="username" type="text" placeholder="Username">
+<input class="email" name="email" type="text" placeholder="Email">
+<input class="password" name="password" type="password" placeholder="Password">
 <button class="getstarted">
   Get started
 </button>
+</form>
 <p class="signupprompt">
   Already have an account? <a href="../signinpage/signin.html">sign in</a>
 </p>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="signup.js"></script>
 <script src="server.js"></script>
 </body>

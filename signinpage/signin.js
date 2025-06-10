@@ -1,44 +1,57 @@
-document.querySelector('.getstarted').addEventListener('click', async () => {
-  const email = document.querySelector('.username').value.trim();
-  const password = document.querySelector('.password').value.trim();
-
-  const usernameError = document.querySelector('.invalidUsername');
-  const passwordError = document.querySelector('.invalidPassword');
-
-  // Clear previous error messages
-  usernameError.textContent = '';
-  passwordError.textContent = '';
-
+//I have a feeling this code is going to be super trash because it's 12, my back hurts
+//and im lowk tryna get this finished, i have no idea what this comment is for because 
+//i dont have anyone else working on this project, and to be honest i probably couldve
+//gotten decent progress if i wasnt typing this out for no reason
+const username = document.getElementsByClassName("username")[0].value.trim();
+const password = document.getElementsByClassName("password")[0].value.trim();
+async function callTheSignInApi() {
   try {
-   const response = await fetch('http://localhost:3000/api/signin', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password }),
-});
+    // Get and trim inputs
+    const username = document.querySelector(".username").value.trim();
+    const password = document.querySelector(".password").value.trim();
+    
+    // Validate
+    if (!username || !password) {
+      document.querySelector(".invalidUsername").textContent = "Please enter both fields";
+      return;
+    }
 
-let data;
-try {
-  data = await response.json();
-} catch (e) {
-  console.error('Failed to parse JSON:', e);
-  usernameError.textContent = 'Invalid response from server';
-  return;
-}
+    const response = await axios.post('http://localhost:3000/api/signin', {
+      username,
+      password
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+       withCredentials:true
+    }
+  );
 
-if (!response.ok) {
-  usernameError.textContent = data?.error || 'Sign-in failed';
-  return;
-}
-
-    // On success, set cookie for 7 days to remember user
-    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-    document.cookie = `signedInUser=${encodeURIComponent(data.username)}; expires=${expires}; path=/`;
-
-    // Redirect or update UI after sign-in
-    alert(`Welcome back, ${data.username}!`);
-    // window.location.href = '/dashboard'; // Uncomment to redirect
-  } catch (err) {
-    console.error('Sign-in error:', err);
-    usernameError.textContent = 'Server error. Please try again later.';
+    // Redirect on success
+    
+  } catch (error) {
+    // Handle all error cases
+    const errorElement = document.querySelector(".invalidUsername");
+    
+    if (error.response) {
+      if (error.response.status === 400) {
+        errorElement.textContent = "Invalid request format";
+      } else if (error.response.status === 401) {
+        errorElement.textContent = "Wrong username/password";
+      }
+    } else {
+      errorElement.textContent = "Network error - check console";
+      console.error("Signin failed:", error);
+    }
   }
+}
+
+// Attach event listener
+document.querySelector(".getstarted").addEventListener("click", (e) => {
+  e.preventDefault();
+  callTheSignInApi();
 });
+
+window.onload=()=>{
+  console.log(navigator.cookieEnabled);
+}
