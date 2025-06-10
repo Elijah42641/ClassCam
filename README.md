@@ -1,1 +1,1 @@
-current goal: add cookies when user signs in
+current goal: frontend design for dashboard
