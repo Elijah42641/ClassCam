@@ -1,9 +1,6 @@
-//I have a feeling this code is going to be super trash because it's 12, my back hurts
-//and im lowk tryna get this finished, i have no idea what this comment is for because 
-//i dont have anyone else working on this project, and to be honest i probably couldve
-//gotten decent progress if i wasnt typing this out for no reason
 const username = document.getElementsByClassName("username")[0].value.trim();
 const password = document.getElementsByClassName("password")[0].value.trim();
+
 async function callTheSignInApi() {
   try {
     // Get and trim inputs

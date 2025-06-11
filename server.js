@@ -228,7 +228,7 @@ app.post('/api/usersignedin', async(req, res) => {
 //                           👇 processes file
 app.post('/api/pfp-to-db', upload.single('profilePic'), async (req,res) => {
   try {
-    //check if user uploads file
+    //check if user uploads image
     if (!req.file) {
   return res.status(400).json({ error: 'No file uploaded' });
 }
