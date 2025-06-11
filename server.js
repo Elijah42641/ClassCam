@@ -1,3 +1,5 @@
+console.log("server is running");
+
 //////////Basic stuff (keep unchanged)//////////
 import 'dotenv/config';
 import express from 'express';
@@ -7,6 +9,8 @@ import session from "express-session";
 import FileStore from "session-file-store";
 import cookieParser from "cookie-parser";
 import multer from "multer";
+import cors from 'cors';
+
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,31 +20,39 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
 const FileStoreSession = FileStore(session);
 app.use(cookieParser());
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, './public/uploads');
+    cb(null, path.join(__dirname, 'public/uploads'));
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    cb(null, 'pfp-' + uniqueSuffix + ext); // pfp-1234567890.jpg
+    const filename = `pfp-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+    cb(null, filename);
   }
 });
 
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only images are allowed!'), false);
-    }
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'profilePic'));
   }
+};
+
+const upload = multer({ 
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
+
 
 app.use(
   session({
@@ -211,7 +223,9 @@ app.post('/api/usersignedin', async(req, res) => {
     }
     );
    }
-   console.log(req.session.user);
+   return res.json({
+    username:req.session.user
+  });
   }
 
   catch(err) {
@@ -228,17 +242,24 @@ app.post('/api/usersignedin', async(req, res) => {
 //                           👇 processes file
 app.post('/api/pfp-to-db', upload.single('profilePic'), async (req,res) => {
   try {
+    console.log("api call recieved");
     //check if user uploads image
     if (!req.file) {
   return res.status(400).json({ error: 'No file uploaded' });
 }
-      req.body= { profilePic, username } //later in html give the profile pic to be inserted to have a name prop of profilePic
+
+console.log("recieved file in backend");
+      const { profilePic, username } = req.body;
+
       //path to image   👇
       const filePathForImage = `/uploads/${req.file.filename}`;
-      const insertPfp = await pool.query(`UPDATE otheraccountdata (Profile_pic) SET ($1) WHERE username=$2` [filePathForImage,username]);
+      const insertPfp = await pool.query(`UPDATE otheraccountdata SET Profile_pic = $1 WHERE username = $2`, [filePathForImage,username]);
+
+      //success message
+      res.status(200).json({ message:"successfully updated profile pic" });
     }                                                                
 
   catch (error) {
-    console.error(error);
+    console.error("Error:", error);
   }
 });
