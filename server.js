@@ -6,6 +6,7 @@ import bcryptjs from 'bcryptjs';
 import session from "express-session";
 import FileStore from "session-file-store";
 import cookieParser from "cookie-parser";
+import multer from "multer";
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,6 +18,29 @@ const app = express();
 
 const FileStoreSession = FileStore(session);
 app.use(cookieParser());
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './public/uploads');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'pfp-' + uniqueSuffix + ext); // pfp-1234567890.jpg
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images are allowed!'), false);
+    }
+  }
+});
 
 app.use(
   session({
@@ -53,12 +77,6 @@ const pool = new Pool({
   database: 'postgres',
   password: process.env.PASSWORD,
   port: 5432,
-});
-
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
 });
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
@@ -184,6 +202,7 @@ app.post('/api/signin', async (req, res) => {
   }
 });
 
+//for redirecting if not signed in
 app.post('/api/usersignedin', async(req, res) => {
   try {
    if (!req.session.user || req.session.user===undefined) {
@@ -204,3 +223,22 @@ app.post('/api/usersignedin', async(req, res) => {
     console.error(err) 
   }
 })
+
+//upload pfp to database      
+//                           👇 processes file
+app.post('/api/pfp-to-db', upload.single('profilePic'), async (req,res) => {
+  try {
+    //check if user uploads file
+    if (!req.file) {
+  return res.status(400).json({ error: 'No file uploaded' });
+}
+      req.body= { profilePic, username } //later in html give the profile pic to be inserted to have a name prop of profilePic
+      //path to image   👇
+      const filePathForImage = `/uploads/${req.file.filename}`;
+      const insertPfp = await pool.query(`UPDATE otheraccountdata (Profile_pic) SET ($1) WHERE username=$2` [filePathForImage,username]);
+    }                                                                
+
+  catch (error) {
+    console.error(error);
+  }
+});
